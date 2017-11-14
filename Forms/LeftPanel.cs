@@ -288,12 +288,24 @@ namespace Dos.Tools
             {
                 dbObject = new Dos.DbObjects.Oracle.DbObject(conModel.ConnectionString);
 
-                TreeNode tnode = new TreeNode(conModel.Database, 1, 1);
-                tnode.Tag = conModel.ConnectionString;
-                tnode.ContextMenuStrip = contextMenuStripOneDataBase;
-                node.Nodes.Add(tnode);
+                DataTable dt = dbObject.GetDBList();
 
-                gettables(tnode, dbObject.GetTables(tnode.Text), dbObject.GetVIEWs(tnode.Text));
+                foreach (DataRow dr in dt.Rows)
+                {
+                    TreeNode tnode = new TreeNode(dr[0].ToString(), 1, 1);
+                    tnode.Tag = conModel.ConnectionString;
+                    tnode.ContextMenuStrip = contextMenuStripOneDataBase;
+                    node.Nodes.Add(tnode);
+
+                    gettables(tnode, dbObject.GetTables(tnode.Text), dbObject.GetVIEWs(tnode.Text));
+                }
+
+                //TreeNode tnode = new TreeNode(conModel.Database, 1, 1);
+                //tnode.Tag = conModel.ConnectionString;
+                //tnode.ContextMenuStrip = contextMenuStripOneDataBase;
+                //node.Nodes.Add(tnode);
+
+                //gettables(tnode, dbObject.GetTables(tnode.Text), dbObject.GetVIEWs(tnode.Text));
             }
             else if (conModel.DbType.Equals(Dos.ORM.DatabaseType.MySql.ToString()))
             {

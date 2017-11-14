@@ -1,4 +1,7 @@
-﻿namespace Dos.DbObjects.Oracle
+﻿using System.IO;
+using System.Reflection;
+
+namespace Dos.DbObjects.Oracle
 {
     
     using System;
@@ -14,6 +17,18 @@
 
         private DbSession dbSession;
 
+        static DbObject()
+        {
+            //如果不装Oracle客户端，可以在x86和x64目录放置对应版本的instantclient的四个dll
+            //oci.dll, orannzsbb11.dll, oraocci11.dll, oraociei11.dll. 这里用的是11.x的版本。
+            var executingAssemblyFile = new Uri(Assembly.GetExecutingAssembly().GetName().CodeBase).LocalPath;
+            var executingDirectory = Path.GetDirectoryName(executingAssemblyFile);
+            var nativePath = Path.Combine(executingDirectory, IntPtr.Size == 4 ? "x86" : "x64");
+
+            var path = Environment.GetEnvironmentVariable("PATH");
+            path = nativePath + ";" + path;
+            Environment.SetEnvironmentVariable("PATH", path);
+        }
 
         public DbObject(string DbConnectStr)
         {
@@ -106,8 +121,8 @@
             builder.Append("COLUMN_ID as colorder,");
             builder.Append("COLUMN_NAME as ColumnName,");
             builder.Append("DATA_TYPE as TypeName ");
-            builder.Append(" from USER_TAB_COLUMNS ");
-            builder.Append(" where TABLE_NAME='" + TableName + "'");
+            builder.Append(" from all_TAB_COLUMNS ");
+            builder.Append(" where OWNER='" + DbName + "' and TABLE_NAME='" + TableName + "'");
             builder.Append(" order by COLUMN_ID");
             return this.Query("", builder.ToString()).Tables[0];
 
@@ -116,7 +131,8 @@
 
         public DataTable GetDBList()
         {
-            return null;
+            string sQLString = "select distinct owner name from dba_segments where owner in (select username from dba_users where default_tablespace not in ('SYSTEM','SYSAUX')) order by owner";
+            return this.Query("", sQLString).Tables[0];
         }
 
         public DataTable GetKeyName(string DbName, string TableName)
@@ -136,11 +152,12 @@
             builder.Append("NULLABLE as cisNull ,");
             builder.Append("DATA_DEFAULT as defaultVal, ");
             builder.Append("'' as deText ");
-            builder.Append(" from USER_TAB_COLUMNS ");
+            builder.Append(" from ALL_TAB_COLUMNS ");
             builder.Append(" where TABLE_NAME='" + TableName + "'");
+            builder.Append(" and OWNER='" + DbName + "'");
             builder.Append(") Keyname ");
             builder.Append(" where ColumnName in (");
-            builder.Append("select column_name from user_constraints c,user_cons_columns col where c.constraint_name=col.constraint_name and c.constraint_type='P' and c.table_name='" + TableName + "'");
+            builder.Append("select column_name from all_constraints c,all_cons_columns col where c.constraint_name=col.constraint_name and c.constraint_type='P' and c.OWNER='" + DbName + "' and c.table_name='" + TableName + "'");
             builder.Append(")");
             return this.Query("", builder.ToString()).Tables[0];
         }
@@ -157,7 +174,7 @@
 
         public DataTable GetProcs(string DbName)
         {
-            string sQLString = "SELECT * FROM ALL_SOURCE  where TYPE='PROCEDURE'  ";
+            string sQLString = "SELECT * FROM ALL_SOURCE  where TYPE='PROCEDURE' and owner='" + DbName + "' order by name";
             return this.Query(DbName, sQLString).Tables[0];
         }
 
@@ -173,25 +190,25 @@
 
         public DataTable GetTables(string DbName)
         {
-            string sQLString = "select TNAME name from tab where TABTYPE='TABLE' order by TNAME";
+            string sQLString = "select table_name name from all_tables where owner='" + DbName + "' order by table_name";
             return this.Query("", sQLString).Tables[0];
         }
 
         public DataTable GetTablesInfo(string DbName)
         {
-            string sQLString = "select TNAME name,'dbo' cuser,TABTYPE type,'' dates from tab where TABTYPE='TABLE' order by TNAME";
+            string sQLString = "select table_name name, owner cuser, 'TABLE' type from all_tables where owner='" + DbName + "' order by table_name";
             return this.Query("", sQLString).Tables[0];
         }
 
         public DataTable GetTabViews(string DbName)
         {
-            string sQLString = "select TNAME name,TABTYPE type from tab  order by TNAME";
+            string sQLString = "select table_name name from all_tables where owner='" + DbName + "' order by table_name";
             return this.Query("", sQLString).Tables[0];
         }
 
         public DataTable GetTabViewsInfo(string DbName)
         {
-            string sQLString = "select TNAME name,'dbo' cuser,TABTYPE type,'' dates from tab  order by TNAME";
+            string sQLString = "select table_name name, owner cuser, 'TABLE' type from all_tables where owner='" + DbName + "' order by table_name";
             return this.Query("", sQLString).Tables[0];
         }
 
@@ -202,13 +219,13 @@
 
         public DataTable GetVIEWs(string DbName)
         {
-            string sQLString = "select TNAME name from tab where TABTYPE='VIEW' order by TNAME";
+            string sQLString = "select view_name name from all_views where owner='" + DbName + "' order by view_name";
             return this.Query("", sQLString).Tables[0];
         }
 
         public DataTable GetVIEWsInfo(string DbName)
         {
-            string sQLString = "select TNAME name,'dbo' cuser,TABTYPE type,'' dates from tab where TABTYPE='VIEW' order by TNAME";
+            string sQLString = "select view_name name, owner cuser, 'VIEW' type from all_views where owner='" + DbName + "' order by view_name";
             return this.Query("", sQLString).Tables[0];
         }
 
